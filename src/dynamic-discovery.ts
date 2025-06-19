@@ -73,14 +73,188 @@ export class DynamicComponentDiscovery {
   async discoverAllComponents(): Promise<ComponentMetadata[]> {
     const discoveredComponents: ComponentMetadata[] = [];
     
-    console.error('🔍 Starting dynamic component discovery...');
+    console.error('🔍 Starting comprehensive component discovery...');
+    
+    // Strategy 1: Discover numbered components (comp-001 to comp-596)
+    const numberedComponents = await this.discoverNumberedComponents();
+    discoveredComponents.push(...numberedComponents);
+    console.error(`✅ Found ${numberedComponents.length} numbered components`);
+    
+    // Strategy 2: Discover named components from registry
+    const namedComponents = await this.discoverNamedComponents();
+    discoveredComponents.push(...namedComponents);
+    console.error(`✅ Found ${namedComponents.length} named components`);
+    
+    // Strategy 3: Discover from categories (as fallback)
+    const categoryComponents = await this.discoverCategoryComponents();
+    const newCategoryComponents = categoryComponents.filter(comp => 
+      !discoveredComponents.some(existing => existing.id === comp.id)
+    );
+    discoveredComponents.push(...newCategoryComponents);
+    console.error(`✅ Found ${newCategoryComponents.length} additional category components`);
+    
+    console.error(`🎉 Total discovered: ${discoveredComponents.length} components`);
+    return discoveredComponents;
+  }
+
+  async discoverNumberedComponents(): Promise<ComponentMetadata[]> {
+    console.error('🔢 Discovering numbered components (comp-001 to comp-596)...');
+    const components: ComponentMetadata[] = [];
+    const batchSize = 50;
+    
+    // Check components in batches to avoid overwhelming the server
+    for (let start = 1; start <= 596; start += batchSize) {
+      const batch: Promise<ComponentMetadata | null>[] = [];
+      
+      for (let i = start; i < start + batchSize && i <= 596; i++) {
+        const paddedNum = i.toString().padStart(3, '0');
+        const componentId = `comp-${paddedNum}`;
+        
+        batch.push(
+          this.checkComponentExists(componentId)
+            .then(exists => exists ? this.createNumberedComponent(componentId, i) : null)
+            .catch(() => null)
+        );
+      }
+      
+      const results = await Promise.allSettled(batch);
+      const validComponents = results
+        .map(result => result.status === 'fulfilled' ? result.value : null)
+        .filter((comp): comp is ComponentMetadata => comp !== null);
+      
+      components.push(...validComponents);
+      
+      if (start % 100 === 1) {
+        console.error(`📊 Progress: Checked ${Math.min(start + batchSize - 1, 596)}/596 numbered components`);
+      }
+    }
+    
+    return components;
+  }
+
+  async discoverNamedComponents(): Promise<ComponentMetadata[]> {
+    console.error('📝 Discovering named components...');
+    const knownNamedComponents = [
+      'accordion', 'alert', 'avatar', 'badge', 'banner', 'breadcrumb',
+      'button', 'calendar-date-picker', 'checkbox', 'dialog', 'dropdown',
+      'file-upload', 'event-calendar', 'input', 'label', 'navbar',
+      'notification', 'pagination', 'popover', 'radio', 'select',
+      'slider', 'stepper', 'switch', 'table', 'tabs', 'textarea',
+      'timeline', 'tooltip', 'tree',
+      // Hook components
+      'use-character-limit', 'use-file-upload', 'use-pagination',
+      'use-local-storage', 'use-debounce', 'use-copy-to-clipboard'
+    ];
+    
+    const components: ComponentMetadata[] = [];
+    const batch: Promise<ComponentMetadata | null>[] = knownNamedComponents.map(componentId =>
+      this.checkComponentExists(componentId)
+        .then(exists => exists ? this.createNamedComponent(componentId) : null)
+        .catch(() => null)
+    );
+    
+    const results = await Promise.allSettled(batch);
+    const validComponents = results
+      .map(result => result.status === 'fulfilled' ? result.value : null)
+      .filter((comp): comp is ComponentMetadata => comp !== null);
+    
+    components.push(...validComponents);
+    return components;
+  }
+
+  private async checkComponentExists(componentId: string): Promise<boolean> {
+    try {
+      const response = await fetch(`${this.baseUrl}/r/${componentId}.json`, { method: 'HEAD' });
+      return response.ok;
+    } catch {
+      return false;
+    }
+  }
+
+  private createNumberedComponent(componentId: string, index: number): ComponentMetadata {
+    return {
+      id: componentId,
+      name: `Component ${index}`,
+      category: 'component',
+      tags: ['ui', 'component', 'numbered'],
+      description: `OriginUI component ${componentId}`,
+      installUrl: `https://originui.com/r/${componentId}.json`,
+      dependencies: [],
+      styling: {
+        framework: 'Tailwind CSS',
+        darkMode: true,
+        responsive: true,
+        customizable: true
+      },
+      screenshots: {
+        preview: `${this.baseUrl}`
+      }
+    };
+  }
+
+  private createNamedComponent(componentId: string): ComponentMetadata {
+    const categoryMap: { [key: string]: string } = {
+      'accordion': 'layout',
+      'alert': 'feedback',
+      'avatar': 'media',
+      'badge': 'feedback',
+      'banner': 'feedback',
+      'breadcrumb': 'navigation',
+      'button': 'button',
+      'calendar-date-picker': 'input',
+      'checkbox': 'input',
+      'dialog': 'overlay',
+      'dropdown': 'overlay',
+      'file-upload': 'input',
+      'event-calendar': 'data-display',
+      'input': 'input',
+      'label': 'typography',
+      'navbar': 'navigation',
+      'notification': 'feedback',
+      'pagination': 'navigation',
+      'popover': 'overlay',
+      'radio': 'input',
+      'select': 'select',
+      'slider': 'input',
+      'stepper': 'navigation',
+      'switch': 'input',
+      'table': 'data-display',
+      'tabs': 'navigation',
+      'textarea': 'input',
+      'timeline': 'data-display',
+      'tooltip': 'overlay',
+      'tree': 'data-display'
+    };
+
+    return {
+      id: componentId,
+      name: this.capitalizeFirst(componentId.replace(/-/g, ' ')),
+      category: categoryMap[componentId] || 'component',
+      tags: [categoryMap[componentId] || 'component', 'ui', 'named'],
+      description: `OriginUI ${componentId.replace(/-/g, ' ')} component`,
+      installUrl: `https://originui.com/r/${componentId}.json`,
+      dependencies: [],
+      styling: {
+        framework: 'Tailwind CSS',
+        darkMode: true,
+        responsive: true,
+        customizable: true
+      },
+      screenshots: {
+        preview: `${this.baseUrl}`
+      }
+    };
+  }
+
+  private async discoverCategoryComponents(): Promise<ComponentMetadata[]> {
+    const discoveredComponents: ComponentMetadata[] = [];
     
     // First discover all categories
     const allCategories = await this.discoverAllCategories();
     
     for (const category of allCategories) {
       try {
-        const components = await this.discoverCategoryComponents(category);
+        const components = await this.discoverCategoryComponentsOld(category);
         discoveredComponents.push(...components);
         console.error(`✅ Discovered ${components.length} components in ${category}`);
       } catch (error) {
@@ -88,11 +262,10 @@ export class DynamicComponentDiscovery {
       }
     }
     
-    console.error(`🎉 Total discovered: ${discoveredComponents.length} components across ${allCategories.length} categories`);
     return discoveredComponents;
   }
 
-  private async discoverCategoryComponents(category: string): Promise<ComponentMetadata[]> {
+  private async discoverCategoryComponentsOld(category: string): Promise<ComponentMetadata[]> {
     const url = `${this.baseUrl}/${category}`;
     
     try {
