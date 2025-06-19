@@ -10,9 +10,31 @@ A Model Context Protocol (MCP) server that provides access to OriginUI component
 - **Component Preview**: View styling information and usage examples
 - **Category Filtering**: Browse components by category (buttons, inputs, forms, etc.)
 
+## 🚀 Quick Start
+
+**TL;DR**: Add this to your `~/.claude-code/mcp.json` file:
+
+```json
+{
+  "mcpServers": {
+    "origin-ui": {
+      "command": "npx",
+      "args": ["--yes", "github:kelvinchng/origin-ui-mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+Restart Claude Code and ask: *"What OriginUI button components are available?"*
+
 ## Installation
 
-### Option 1: Install from GitHub (Recommended)
+### Option 1: Use with npx (Recommended - No Cloning Required!)
+
+No installation needed! You can use the MCP server directly from the GitHub repository with npx.
+
+### Option 2: Clone and Build Locally
 
 ```bash
 git clone https://github.com/kelvinchng/origin-ui-mcp.git
@@ -21,7 +43,7 @@ npm install
 npm run build
 ```
 
-### Option 2: Global Installation (Coming Soon)
+### Option 3: Global Installation (Coming Soon)
 
 ```bash
 npm install -g origin-ui-mcp
@@ -33,6 +55,20 @@ npm install -g origin-ui-mcp
 
 Create or edit your Claude Code MCP configuration file at `~/.claude-code/mcp.json`:
 
+#### Option A: Using npx (Recommended)
+```json
+{
+  "mcpServers": {
+    "origin-ui": {
+      "command": "npx",
+      "args": ["--yes", "github:kelvinchng/origin-ui-mcp"],
+      "env": {}
+    }
+  }
+}
+```
+
+#### Option B: Using local clone
 ```json
 {
   "mcpServers": {
@@ -45,7 +81,7 @@ Create or edit your Claude Code MCP configuration file at `~/.claude-code/mcp.js
 }
 ```
 
-**Important**: Replace `/absolute/path/to/origin-ui-mcp/` with the actual path where you cloned the repository.
+**Note**: With Option A (npx), no manual installation or path configuration is needed!
 
 ### Step 2: Restart Claude Code
 

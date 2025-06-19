@@ -7,7 +7,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsx src/index.ts",
-    "start": "node dist/index.js"
+    "start": "node dist/index.js",
+    "prepare": "npm run build",
+    "prepack": "npm run build"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
@@ -20,10 +22,11 @@
     "typescript": "^5.3.0"
   },
   "bin": {
-    "origin-ui-mcp": "./dist/index.js"
+    "origin-ui-mcp": "./bin/origin-ui-mcp.js"
   },
   "files": [
-    "dist/**/*"
+    "dist/**/*",
+    "bin/**/*"
   ],
   "keywords": [
     "mcp",
