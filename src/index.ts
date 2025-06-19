@@ -120,6 +120,26 @@ class OriginUIMCPServer {
               required: ["componentId"],
             },
           },
+          {
+            name: "get_component_screenshot",
+            description: "Get component screenshot/visual preview to help assess if it fits the project",
+            inputSchema: {
+              type: "object",
+              properties: {
+                componentId: {
+                  type: "string",
+                  description: "Component ID (e.g., 'comp-163')",
+                },
+                theme: {
+                  type: "string",
+                  description: "Theme preference for screenshot",
+                  enum: ["light", "dark", "both"],
+                  default: "both"
+                },
+              },
+              required: ["componentId"],
+            },
+          },
         ],
       };
     });
@@ -159,6 +179,12 @@ class OriginUIMCPServer {
           case "get_component_preview":
             return await this.originUIService.getComponentPreview(
               args.componentId as string
+            );
+
+          case "get_component_screenshot":
+            return await this.originUIService.getComponentScreenshot(
+              args.componentId as string,
+              args.theme as string | undefined
             );
 
           default:

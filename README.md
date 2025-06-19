@@ -7,6 +7,7 @@ A Model Context Protocol (MCP) server that provides access to OriginUI component
 - **Component Search**: Search components by name, category, or tags
 - **Component Details**: Get comprehensive information about specific components
 - **Installation Commands**: Generate proper `pnpm dlx shadcn@latest add` commands
+- **Visual Previews**: Get component screenshots and visual descriptions to assess fit
 - **Component Preview**: View styling information and usage examples
 - **Category Filtering**: Browse components by category (buttons, inputs, forms, etc.)
 
@@ -109,6 +110,23 @@ Once integrated with Claude Code, you can ask questions like:
 
 Claude Code will use the MCP server to provide accurate information and installation commands.
 
+## 📸 Visual Component Assessment
+
+One of the key features is the ability to get visual previews of components to help LLMs make better recommendations:
+
+```
+"Show me what the payment component looks like"
+"Get a screenshot of the button component"
+"I want to see the visual style of navigation components"
+```
+
+The MCP server will provide:
+- Visual descriptions of component appearance
+- Links to live examples on OriginUI
+- Theme-specific information (light/dark modes)
+- Mobile responsiveness details
+- Use case recommendations based on visual style
+
 ### Available Tools
 
 #### `search_components`
@@ -165,6 +183,20 @@ Get component preview with styling information and usage examples.
 **Parameters:**
 - `componentId` (string, required): Component ID
 
+#### `get_component_screenshot`
+Get component visual preview to help assess if it fits your project.
+
+**Parameters:**
+- `componentId` (string, required): Component ID
+- `theme` (string, optional): Theme preference ("light", "dark", "both")
+
+**Returns:**
+- Visual descriptions of component appearance
+- Screenshots when available
+- Links to live examples
+- Use case recommendations
+- Installation instructions
+
 ## Component Categories
 
 - `button` - Button components
@@ -199,6 +231,12 @@ const details = await get_component_details({
 // Get installation command
 const installCmd = await get_install_command({
   componentId: "comp-163"
+});
+
+// Get visual preview to assess fit
+const screenshot = await get_component_screenshot({
+  componentId: "comp-163",
+  theme: "both"
 });
 
 // Install the component

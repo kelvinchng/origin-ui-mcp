@@ -13,6 +13,12 @@ export interface ComponentMetadata {
     responsive: boolean;
     customizable: boolean;
   };
+  screenshots?: {
+    light?: string;
+    dark?: string;
+    mobile?: string;
+    preview?: string;
+  };
 }
 
 export const COMPONENTS_REGISTRY: ComponentMetadata[] = [
@@ -30,6 +36,9 @@ export const COMPONENTS_REGISTRY: ComponentMetadata[] = [
       darkMode: true,
       responsive: true,
       customizable: true
+    },
+    screenshots: {
+      preview: 'https://originui.com/buttons'
     }
   },
   {
@@ -44,6 +53,9 @@ export const COMPONENTS_REGISTRY: ComponentMetadata[] = [
       darkMode: true,
       responsive: true,
       customizable: true
+    },
+    screenshots: {
+      preview: 'https://originui.com/buttons'
     }
   },
   {
@@ -150,6 +162,9 @@ export const COMPONENTS_REGISTRY: ComponentMetadata[] = [
       darkMode: true,
       responsive: true,
       customizable: true
+    },
+    screenshots: {
+      preview: 'https://originui.com/'
     }
   },
   {

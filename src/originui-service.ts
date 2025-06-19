@@ -91,7 +91,8 @@ export class OriginUIService {
           `Tags: ${comp.tags.join(', ')}\\n` +
           `Description: ${comp.description || 'N/A'}\\n` +
           `Styling: ${comp.styling?.framework || 'Tailwind CSS'}${comp.styling?.darkMode ? ' • Dark Mode' : ''}${comp.styling?.responsive ? ' • Responsive' : ''}\\n` +
-          `Install: \`pnpm dlx shadcn@latest add ${comp.installUrl}\`\\n`
+          `Install: \`pnpm dlx shadcn@latest add ${comp.installUrl}\`\\n` +
+          `Visual: Use \`get_component_screenshot\` to see how this component looks\\n`
         ).join('\\n---\\n')
       : `No components found matching "${query}"${category ? ` in category "${category}"` : ''}`;
 
@@ -99,7 +100,7 @@ export class OriginUIService {
       content: [
         {
           type: "text",
-          text: `Found ${results.length} component(s):\\n\\n${resultText}`
+          text: `Found ${results.length} component(s):\\n\\n${resultText}\\n\\n💡 **Tip**: Use the \`get_component_screenshot\` tool with any component ID to see visual previews and decide if it fits your project!`
         }
       ]
     };
@@ -256,6 +257,130 @@ pnpm dlx shadcn@latest add ${component.installUrl}
         ]
       };
     }
+  }
+
+  async getComponentScreenshot(componentId: string, theme: string = 'both'): Promise<{ content: Array<{ type: string; text?: string; image_url?: string }> }> {
+    const registryComponent = COMPONENTS_REGISTRY.find(comp => comp.id === componentId);
+    
+    if (!registryComponent) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `Component "${componentId}" not found. Use search_components to find available components.`
+          }
+        ]
+      };
+    }
+
+    const content: Array<{ type: string; text?: string; image_url?: string }> = [];
+    
+    // Add component information
+    content.push({
+      type: "text",
+      text: `# ${registryComponent.name} (${componentId}) - Visual Preview\n\n**Description**: ${registryComponent.description}\n**Category**: ${registryComponent.category}\n**Tags**: ${registryComponent.tags.join(', ')}\n\n**Installation**: \`pnpm dlx shadcn@latest add ${registryComponent.installUrl}\`\n\n`
+    });
+
+    // If screenshots are available, show them
+    if (registryComponent.screenshots) {
+      if (registryComponent.screenshots.light && (theme === 'light' || theme === 'both')) {
+        content.push({
+          type: "text",
+          text: "## Light Theme Preview"
+        });
+        content.push({
+          type: "image",
+          image_url: registryComponent.screenshots.light
+        });
+      }
+
+      if (registryComponent.screenshots.dark && (theme === 'dark' || theme === 'both')) {
+        content.push({
+          type: "text",
+          text: theme === 'both' ? "## Dark Theme Preview" : "## Dark Theme Preview"
+        });
+        content.push({
+          type: "image",
+          image_url: registryComponent.screenshots.dark
+        });
+      }
+
+      if (registryComponent.screenshots.preview && !registryComponent.screenshots.light && !registryComponent.screenshots.dark) {
+        content.push({
+          type: "text",
+          text: "## Component Preview"
+        });
+        content.push({
+          type: "image",
+          image_url: registryComponent.screenshots.preview
+        });
+      }
+
+      if (registryComponent.screenshots.mobile) {
+        content.push({
+          type: "text",
+          text: "## Mobile/Responsive View"
+        });
+        content.push({
+          type: "image",
+          image_url: registryComponent.screenshots.mobile
+        });
+      }
+    }
+
+    // If no screenshots, provide helpful alternatives
+    if (!registryComponent.screenshots || content.length === 1) {
+      const categoryUrl = this.getCategoryUrl(registryComponent.category);
+      
+      content.push({
+        type: "text",
+        text: `## Visual Reference\n\nTo see how this component looks:\n\n1. **Live Examples**: Visit ${categoryUrl} to see this component in action\n2. **Interactive Demo**: Components on OriginUI show both light and dark themes\n3. **Responsive Design**: All components are mobile-friendly\n\n**Key Visual Features**:\n- ${this.getVisualDescription(registryComponent)}\n\n**Recommended for**: ${this.getUseCaseDescription(registryComponent)}`
+      });
+    }
+
+    return { content };
+  }
+
+  private getCategoryUrl(category: string): string {
+    const categoryUrls: { [key: string]: string } = {
+      'button': 'https://originui.com/buttons',
+      'input': 'https://originui.com/inputs',
+      'select': 'https://originui.com/selects',
+      'form': 'https://originui.com/',
+      'navigation': 'https://originui.com/navbars',
+      'card': 'https://originui.com/',
+      'data-display': 'https://originui.com/',
+      'overlay': 'https://originui.com/',
+      'feedback': 'https://originui.com/'
+    };
+    
+    return categoryUrls[category] || 'https://originui.com/';
+  }
+
+  private getVisualDescription(component: ComponentMetadata): string {
+    const descriptions: { [key: string]: string } = {
+      'button': 'Clean, modern button styling with hover states and focus rings',
+      'input': 'Minimal input fields with subtle borders and focus states',
+      'select': 'Dropdown components with smooth animations and clear selection states',
+      'form': 'Well-spaced form layouts with consistent styling',
+      'navigation': 'Clean navigation bars with responsive mobile toggles',
+      'card': 'Subtle shadows and rounded corners for content containers',
+      'data-display': 'Clean tables and lists with good typography',
+      'overlay': 'Smooth modal animations with backdrop blur effects',
+      'feedback': 'Clear status indicators with appropriate color coding'
+    };
+    
+    return descriptions[component.category] || 'Modern, accessible design following design system principles';
+  }
+
+  private getUseCaseDescription(component: ComponentMetadata): string {
+    if (component.tags.includes('payment')) return 'E-commerce checkout flows, payment forms';
+    if (component.tags.includes('navigation')) return 'Website headers, mobile menus, sidebar navigation';
+    if (component.tags.includes('form')) return 'User input, data collection, settings pages';
+    if (component.tags.includes('button')) return 'Actions, CTAs, interactive elements';
+    if (component.tags.includes('data')) return 'Tables, lists, data presentation';
+    
+    return 'General UI components for modern web applications';
   }
 
   private async fetchComponent(componentId: string): Promise<OriginUIComponent> {
