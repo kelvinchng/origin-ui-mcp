@@ -13,15 +13,12 @@ interface DiscoveredComponent {
 
 export class DynamicComponentDiscovery {
   private readonly baseUrl = 'https://originui.com';
-  private readonly knownCategories = [
-    'buttons', 'inputs', 'selects', 'tabs', 'forms', 'cards', 
-    'navbars', 'tables', 'modals', 'alerts', 'badges', 'tooltips',
-    'dropdowns', 'toggles', 'sliders', 'checkboxes', 'radios',
-    'layouts', 'typography', 'avatars', 'breadcrumbs', 'pagination',
-    'accordions', 'calendars', 'carousels', 'charts', 'dialogs',
-    'dropzones', 'galleries', 'grids', 'loaders', 'menus',
-    'notifications', 'progress', 'ratings', 'scrollbars', 'sidebars',
-    'steppers', 'timelines', 'uploads', 'wizards'
+  private readonly allAvailableTags = [
+    // Core components
+    'accordion', 'alert', 'avatar', 'badge', 'banner', 'breadcrumb', 'button', 'calendar', 'checkbox', 'collapsible', 'combobox', 'command', 'crop', 'dialog', 'dropdown', 'input', 'label', 'notification', 'otp', 'pagination', 'popover', 'radio', 'select', 'slider', 'sonner', 'stepper', 'table', 'tabs', 'textarea', 'timeline', 'switch', 'tooltip',
+    
+    // Compound components
+    'alert dialog', 'authentication', 'autocomplete', 'avatar group', 'back', 'card', 'chart', 'checkout', 'chip', 'color', 'controls', 'cookies', 'countdown', 'counter', 'copy', 'credit card', 'darkmode', 'date', 'delete', 'disabled', 'drag and drop', 'emblor', 'equalizer', 'error', 'feedback', 'file', 'filter', 'flag', 'form', 'gdpr', 'hamburger', 'helper', 'hint', 'hover card', 'image', 'info', 'kbd', 'like', 'loading', 'login', 'mask', 'menu', 'modal', 'multiselect', 'native select', 'newsletter', 'next', 'number', 'onboarding', 'password', 'payment', 'phone', 'picker', 'previous', 'pricing', 'privacy', 'profile', 'radix', 'range', 'range calendar', 'range slider', 'rating', 'react aria', 'react daypicker', 'read-only', 'required', 'reset', 'resize', 'sale', 'search', 'share', 'signup', 'social', 'sort', 'status', 'sticky', 'subscribe', 'success', 'tag', 'tanstack', 'team', 'text editor', 'time', 'timezone', 'toast', 'toggle', 'toggle group', 'tour', 'tree', 'upload', 'user', 'vertical slider', 'vertical stepper', 'vertical table', 'vertical tabs', 'vertical timeline', 'volume', 'vote', 'warning', 'week', 'zoom'
   ];
 
   async discoverAllCategories(): Promise<string[]> {
@@ -44,16 +41,16 @@ export class DynamicComponentDiscovery {
         }
       });
       
-      // Combine with known categories
-      this.knownCategories.forEach(cat => discoveredCategories.add(cat));
+      // Combine with available tags
+      this.allAvailableTags.forEach((tag: string) => discoveredCategories.add(tag));
       
       const allCategories = Array.from(discoveredCategories);
       console.error(`✅ Discovered ${allCategories.length} total categories:`, allCategories);
       
       return allCategories;
     } catch (error) {
-      console.error('❌ Category discovery failed, using known categories');
-      return this.knownCategories;
+      console.error('❌ Category discovery failed, using available tags');
+      return this.allAvailableTags;
     }
   }
 
@@ -73,28 +70,306 @@ export class DynamicComponentDiscovery {
   async discoverAllComponents(): Promise<ComponentMetadata[]> {
     const discoveredComponents: ComponentMetadata[] = [];
     
-    console.error('🔍 Starting comprehensive component discovery...');
+    console.error('🔍 Starting comprehensive component discovery using OriginUI category pages...');
     
-    // Strategy 1: Discover numbered components (comp-001 to comp-596)
-    const numberedComponents = await this.discoverNumberedComponents();
-    discoveredComponents.push(...numberedComponents);
-    console.error(`✅ Found ${numberedComponents.length} numbered components`);
+    // Strategy 1: Use direct OriginUI category pages
+    const categoryPageComponents = await this.discoverComponentsByCategoryPages();
+    discoveredComponents.push(...categoryPageComponents);
+    console.error(`✅ Found ${categoryPageComponents.length} components via category pages`);
     
-    // Strategy 2: Discover named components from registry
-    const namedComponents = await this.discoverNamedComponents();
-    discoveredComponents.push(...namedComponents);
-    console.error(`✅ Found ${namedComponents.length} named components`);
-    
-    // Strategy 3: Discover from categories (as fallback)
-    const categoryComponents = await this.discoverCategoryComponents();
-    const newCategoryComponents = categoryComponents.filter(comp => 
+    // Strategy 2: GitHub fallback for numbered components (comp-001 to comp-596)
+    const githubComponents = await this.discoverNumberedComponentsGitHubFallback();
+    const newGitHubComponents = githubComponents.filter(comp => 
       !discoveredComponents.some(existing => existing.id === comp.id)
     );
-    discoveredComponents.push(...newCategoryComponents);
-    console.error(`✅ Found ${newCategoryComponents.length} additional category components`);
+    discoveredComponents.push(...newGitHubComponents);
+    console.error(`✅ Found ${newGitHubComponents.length} additional components via GitHub fallback`);
+    
+    // Strategy 3: Named components fallback
+    const namedComponents = await this.discoverNamedComponents();
+    const newNamedComponents = namedComponents.filter(comp => 
+      !discoveredComponents.some(existing => existing.id === comp.id)
+    );
+    discoveredComponents.push(...newNamedComponents);
+    console.error(`✅ Found ${newNamedComponents.length} additional named components`);
     
     console.error(`🎉 Total discovered: ${discoveredComponents.length} components`);
     return discoveredComponents;
+  }
+
+  async discoverComponentsByCategoryPages(): Promise<ComponentMetadata[]> {
+    console.error('🔍 Discovering components using OriginUI category pages...');
+    const components: ComponentMetadata[] = [];
+    
+    // Core single-word categories that likely have dedicated pages
+    const coreCategories = [
+      'tabs', 'button', 'navbar', 'input', 'select', 'dialog', 'table',
+      'accordion', 'alert', 'avatar', 'badge', 'banner', 'breadcrumb',
+      'calendar', 'checkbox', 'dropdown', 'notification', 'pagination',
+      'popover', 'radio', 'slider', 'stepper', 'textarea', 'timeline',
+      'tooltip', 'switch'
+    ];
+    
+    const batchSize = 5;
+    
+    // Process categories in batches
+    for (let i = 0; i < coreCategories.length; i += batchSize) {
+      const batch = coreCategories.slice(i, i + batchSize);
+      const batchPromises = batch.map(category => this.discoverComponentsByCategoryPage(category));
+      
+      try {
+        const batchResults = await Promise.allSettled(batchPromises);
+        const batchComponents = batchResults
+          .filter(result => result.status === 'fulfilled')
+          .flatMap(result => (result as PromiseFulfilledResult<ComponentMetadata[]>).value);
+        
+        components.push(...batchComponents);
+        console.error(`📊 Processed categories ${i + 1}-${Math.min(i + batchSize, coreCategories.length)}/${coreCategories.length}`);
+      } catch (error) {
+        console.error(`❌ Error processing batch ${i}-${i + batchSize}: ${error}`);
+      }
+      
+      // Small delay between batches
+      if (i + batchSize < coreCategories.length) {
+        await new Promise(resolve => setTimeout(resolve, 300));
+      }
+    }
+    
+    // Remove duplicates based on component ID
+    const uniqueComponents = components.filter((comp, index, arr) => 
+      arr.findIndex(c => c.id === comp.id) === index
+    );
+    
+    console.error(`✅ Category pages discovered ${uniqueComponents.length} unique components from ${coreCategories.length} categories`);
+    return uniqueComponents;
+  }
+
+  async discoverComponentsByCategoryPage(category: string): Promise<ComponentMetadata[]> {
+    const categoryUrl = `${this.baseUrl}/${category}`;
+    
+    try {
+      const response = await fetch(categoryUrl);
+      if (!response.ok) {
+        return [];
+      }
+      
+      const html = await response.text();
+      return this.extractComponentsFromCategoryPageHTML(html, category);
+    } catch (error) {
+      console.error(`Error fetching category page ${category}:`, error);
+      return [];
+    }
+  }
+
+  private extractComponentsFromCategoryPageHTML(html: string, category: string): ComponentMetadata[] {
+    const components: ComponentMetadata[] = [];
+    
+    // Extract component registry URLs from the page
+    const registryMatches = html.match(/https:\/\/originui\.com\/r\/([^"]+)\.json/g) || [];
+    const uniqueComponents = new Set<string>();
+    
+    registryMatches.forEach((match) => {
+      const componentId = match.match(/\/r\/([^"]+)\.json$/)?.[1];
+      if (componentId && !uniqueComponents.has(componentId)) {
+        uniqueComponents.add(componentId);
+        components.push(this.createComponentFromCategoryPage(componentId, category));
+      }
+    });
+    
+    // Look for component titles/names in the HTML to improve metadata
+    const componentTitles = html.match(/<h[1-6][^>]*>([^<]+)<\/h[1-6]>/g) || [];
+    const titleTexts = componentTitles.map(title => 
+      title.replace(/<h[1-6][^>]*>([^<]+)<\/h[1-6]>/, '$1').trim()
+    ).filter(text => text.length > 0 && text.length < 100);
+    
+    // Try to match component titles to IDs for better naming
+    components.forEach((comp, index) => {
+      if (titleTexts[index] && titleTexts[index] !== category) {
+        comp.name = titleTexts[index];
+        comp.description = `${titleTexts[index]} - ${comp.description}`;
+      }
+    });
+    
+    return components;
+  }
+
+  private createComponentFromCategoryPage(componentId: string, category: string): ComponentMetadata {
+    return {
+      id: componentId,
+      name: this.generateComponentName(componentId, category),
+      category: this.normalizeCategory(category),
+      tags: [category, 'ui', 'component'],
+      description: this.generateDescription(componentId, category),
+      installUrl: `https://originui.com/r/${componentId}.json`,
+      dependencies: this.inferDependencies(category),
+      styling: {
+        framework: 'Tailwind CSS',
+        darkMode: true,
+        responsive: true,
+        customizable: true
+      },
+      screenshots: {
+        preview: `${this.baseUrl}/${category}`
+      }
+    };
+  }
+
+  async discoverComponentsBySearchAPI(): Promise<ComponentMetadata[]> {
+    console.error('🔍 Discovering components using OriginUI search API...');
+    const components: ComponentMetadata[] = [];
+    const batchSize = 10;
+    
+    // Process tags in batches to avoid overwhelming the server
+    for (let i = 0; i < this.allAvailableTags.length; i += batchSize) {
+      const batch = this.allAvailableTags.slice(i, i + batchSize);
+      const batchPromises = batch.map(tag => this.discoverComponentsByTag(tag));
+      
+      try {
+        const batchResults = await Promise.allSettled(batchPromises);
+        const batchComponents = batchResults
+          .filter(result => result.status === 'fulfilled')
+          .flatMap(result => (result as PromiseFulfilledResult<ComponentMetadata[]>).value);
+        
+        components.push(...batchComponents);
+        console.error(`📊 Processed tags ${i + 1}-${Math.min(i + batchSize, this.allAvailableTags.length)}/${this.allAvailableTags.length}`);
+      } catch (error) {
+        console.error(`❌ Error processing batch ${i}-${i + batchSize}: ${error}`);
+      }
+      
+      // Small delay between batches
+      if (i + batchSize < this.allAvailableTags.length) {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+    }
+    
+    // Remove duplicates based on component ID
+    const uniqueComponents = components.filter((comp, index, arr) => 
+      arr.findIndex(c => c.id === comp.id) === index
+    );
+    
+    console.error(`✅ Search API discovered ${uniqueComponents.length} unique components from ${this.allAvailableTags.length} tags`);
+    return uniqueComponents;
+  }
+
+  async discoverComponentsByTag(tag: string): Promise<ComponentMetadata[]> {
+    const searchUrl = `${this.baseUrl}/search?tags=${encodeURIComponent(tag)}`;
+    
+    try {
+      const response = await fetch(searchUrl);
+      if (!response.ok) {
+        return [];
+      }
+      
+      const html = await response.text();
+      return this.extractComponentsFromSearchHTML(html, tag);
+    } catch (error) {
+      console.error(`Error fetching tag ${tag}:`, error);
+      return [];
+    }
+  }
+
+  private extractComponentsFromSearchHTML(html: string, tag: string): ComponentMetadata[] {
+    const components: ComponentMetadata[] = [];
+    
+    // Look for component registry URLs in the search results
+    const registryMatches = html.match(/https:\/\/originui\.com\/r\/([^"]+)\.json/g) || [];
+    const uniqueComponents = new Set<string>();
+    
+    registryMatches.forEach((match) => {
+      const componentId = match.match(/\/r\/([^"]+)\.json$/)?.[1];
+      if (componentId && !uniqueComponents.has(componentId)) {
+        uniqueComponents.add(componentId);
+        components.push(this.createComponentFromSearch(componentId, tag));
+      }
+    });
+    
+    // Also look for component cards/previews in the HTML
+    const componentCardMatches = html.match(/<div[^>]*data-component[^>]*>[\s\S]*?<\/div>/g) || [];
+    componentCardMatches.forEach(cardHtml => {
+      const idMatch = cardHtml.match(/data-component-id="([^"]+)"/);
+      const nameMatch = cardHtml.match(/<h[^>]*>([^<]+)<\/h/);
+      
+      if (idMatch && !uniqueComponents.has(idMatch[1])) {
+        uniqueComponents.add(idMatch[1]);
+        const componentName = nameMatch ? nameMatch[1] : this.generateComponentName(idMatch[1], tag);
+        components.push({
+          id: idMatch[1],
+          name: componentName,
+          category: this.normalizeCategory(tag),
+          tags: [tag, 'ui', 'component'],
+          description: `${componentName} component with ${tag} functionality`,
+          installUrl: `https://originui.com/r/${idMatch[1]}.json`,
+          dependencies: this.inferDependencies(tag),
+          styling: {
+            framework: 'Tailwind CSS',
+            darkMode: true,
+            responsive: true,
+            customizable: true
+          },
+          screenshots: {
+            preview: `${this.baseUrl}/${tag.replace(/\s+/g, '-')}`
+          }
+        });
+      }
+    });
+    
+    return components;
+  }
+
+  private createComponentFromSearch(componentId: string, tag: string): ComponentMetadata {
+    return {
+      id: componentId,
+      name: this.generateComponentName(componentId, tag),
+      category: this.normalizeCategory(tag),
+      tags: [tag, 'ui', 'component'],
+      description: this.generateDescription(componentId, tag),
+      installUrl: `https://originui.com/r/${componentId}.json`,
+      dependencies: this.inferDependencies(tag),
+      styling: {
+        framework: 'Tailwind CSS',
+        darkMode: true,
+        responsive: true,
+        customizable: true
+      },
+      screenshots: {
+        preview: `${this.baseUrl}/${tag.replace(/\s+/g, '-')}`
+      }
+    };
+  }
+
+  async discoverNumberedComponentsGitHubFallback(): Promise<ComponentMetadata[]> {
+    console.error('🔢 GitHub fallback: Discovering numbered components (comp-001 to comp-596)...');
+    const components: ComponentMetadata[] = [];
+    const batchSize = 50;
+    
+    // Check components in batches to avoid overwhelming the server
+    for (let start = 1; start <= 596; start += batchSize) {
+      const batch: Promise<ComponentMetadata | null>[] = [];
+      
+      for (let i = start; i < start + batchSize && i <= 596; i++) {
+        const paddedNum = i.toString().padStart(3, '0');
+        const componentId = `comp-${paddedNum}`;
+        
+        batch.push(
+          this.checkComponentExists(componentId)
+            .then(exists => exists ? this.createNumberedComponent(componentId, i) : null)
+            .catch(() => null)
+        );
+      }
+      
+      const results = await Promise.allSettled(batch);
+      const validComponents = results
+        .map(result => result.status === 'fulfilled' ? result.value : null)
+        .filter((comp): comp is ComponentMetadata => comp !== null);
+      
+      components.push(...validComponents);
+      
+      if (start % 100 === 1) {
+        console.error(`📊 GitHub fallback progress: Checked ${Math.min(start + batchSize - 1, 596)}/596 numbered components`);
+      }
+    }
+    
+    return components;
   }
 
   async discoverNumberedComponents(): Promise<ComponentMetadata[]> {
