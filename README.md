@@ -15,7 +15,7 @@ A Model Context Protocol (MCP) server that provides access to OriginUI component
 ### Option 1: Install from GitHub (Recommended)
 
 ```bash
-git clone https://github.com/yourusername/origin-ui-mcp.git
+git clone https://github.com/kelvinchng/origin-ui-mcp.git
 cd origin-ui-mcp
 npm install
 npm run build
