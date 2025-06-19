@@ -348,6 +348,116 @@ export const COMPONENTS_REGISTRY: ComponentMetadata[] = [
       responsive: true,
       customizable: true
     }
+  },
+
+  // Tabs Components
+  {
+    id: 'tabs',
+    name: 'Tabs',
+    category: 'navigation',
+    tags: ['tabs', 'navigation', 'switch', 'content'],
+    description: 'Basic tabs component for organizing content into sections',
+    installUrl: 'https://originui.com/r/tabs.json',
+    dependencies: ['@radix-ui/react-tabs'],
+    styling: {
+      framework: 'Tailwind CSS',
+      darkMode: true,
+      responsive: true,
+      customizable: true
+    },
+    screenshots: {
+      preview: 'https://originui.com/tabs'
+    }
+  },
+  {
+    id: 'comp-400',
+    name: 'Tabs with Icons',
+    category: 'navigation',
+    tags: ['tabs', 'navigation', 'icons', 'enhanced'],
+    description: 'Enhanced tabs component with icon support for better visual navigation',
+    installUrl: 'https://originui.com/r/comp-400.json',
+    dependencies: ['@radix-ui/react-tabs'],
+    styling: {
+      framework: 'Tailwind CSS',
+      darkMode: true,
+      responsive: true,
+      customizable: true
+    },
+    screenshots: {
+      preview: 'https://originui.com/tabs'
+    }
+  },
+  {
+    id: 'comp-401',
+    name: 'Underlined Tabs',
+    category: 'navigation',
+    tags: ['tabs', 'navigation', 'underline', 'minimal'],
+    description: 'Clean underlined tabs with active state indicators',
+    installUrl: 'https://originui.com/r/comp-401.json',
+    dependencies: ['@radix-ui/react-tabs'],
+    styling: {
+      framework: 'Tailwind CSS',
+      darkMode: true,
+      responsive: true,
+      customizable: true
+    },
+    screenshots: {
+      preview: 'https://originui.com/tabs'
+    }
+  },
+  {
+    id: 'comp-402',
+    name: 'Rounded Tabs',
+    category: 'navigation',
+    tags: ['tabs', 'navigation', 'rounded', 'modern'],
+    description: 'Modern rounded tabs component with smooth transitions',
+    installUrl: 'https://originui.com/r/comp-402.json',
+    dependencies: ['@radix-ui/react-tabs'],
+    styling: {
+      framework: 'Tailwind CSS',
+      darkMode: true,
+      responsive: true,
+      customizable: true
+    },
+    screenshots: {
+      preview: 'https://originui.com/tabs'
+    }
+  },
+  {
+    id: 'comp-403',
+    name: 'Tabs with Badges',
+    category: 'navigation',
+    tags: ['tabs', 'navigation', 'badges', 'notifications'],
+    description: 'Tabs component with badge support for notifications and counts',
+    installUrl: 'https://originui.com/r/comp-403.json',
+    dependencies: ['@radix-ui/react-tabs'],
+    styling: {
+      framework: 'Tailwind CSS',
+      darkMode: true,
+      responsive: true,
+      customizable: true
+    },
+    screenshots: {
+      preview: 'https://originui.com/tabs'
+    }
+  },
+  {
+    id: 'comp-404',
+    name: 'Vertical Tabs',
+    category: 'navigation',
+    tags: ['tabs', 'navigation', 'vertical', 'sidebar'],
+    description: 'Vertical tabs layout ideal for sidebars and complex interfaces',
+    installUrl: 'https://originui.com/r/comp-404.json',
+    dependencies: ['@radix-ui/react-tabs'],
+    styling: {
+      framework: 'Tailwind CSS',
+      darkMode: true,
+      responsive: true,
+      customizable: true
+    },
+    screenshots: {
+      preview: 'https://originui.com/tabs'
+    }
   }
 ];
 
