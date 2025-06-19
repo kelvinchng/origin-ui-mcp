@@ -140,6 +140,20 @@ class OriginUIMCPServer {
               required: ["componentId"],
             },
           },
+          {
+            name: "discover_components",
+            description: "Manually trigger discovery of new components from OriginUI (useful when components are not found)",
+            inputSchema: {
+              type: "object",
+              properties: {
+                force: {
+                  type: "boolean",
+                  description: "Force rediscovery even if recently performed",
+                  default: false
+                },
+              },
+            },
+          },
         ],
       };
     });
@@ -185,6 +199,11 @@ class OriginUIMCPServer {
             return await this.originUIService.getComponentScreenshot(
               args.componentId as string,
               args.theme as string | undefined
+            );
+
+          case "discover_components":
+            return await this.originUIService.discoverComponents(
+              args.force as boolean | undefined
             );
 
           default:

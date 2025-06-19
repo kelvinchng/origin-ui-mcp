@@ -1,5 +1,6 @@
 import fetch from 'node-fetch';
 import { COMPONENTS_REGISTRY, ComponentMetadata, CATEGORIES } from './components-registry.js';
+import { DynamicComponentDiscovery } from './dynamic-discovery.js';
 
 export interface OriginUIComponent {
   id: string;
@@ -49,12 +50,16 @@ export class OriginUIService {
   private componentsList: ComponentSearchResult[] = [];
   private lastCacheUpdate = 0;
   private readonly cacheExpiry = 5 * 60 * 1000; // 5 minutes
+  private dynamicDiscovery: DynamicComponentDiscovery;
+  private discoveryInProgress = false;
 
   constructor() {
+    this.dynamicDiscovery = new DynamicComponentDiscovery();
     this.initializeComponentsList();
   }
 
   private initializeComponentsList() {
+    // Start with static registry
     this.componentsList = COMPONENTS_REGISTRY.map(comp => ({
       id: comp.id,
       name: comp.name,
@@ -64,6 +69,43 @@ export class OriginUIService {
       installUrl: comp.installUrl,
       styling: comp.styling
     }));
+
+    // Trigger dynamic discovery in background (non-blocking)
+    this.performDynamicDiscovery();
+  }
+
+  private async performDynamicDiscovery() {
+    if (this.discoveryInProgress) return;
+    
+    try {
+      this.discoveryInProgress = true;
+      console.error('🚀 Starting background component discovery...');
+      
+      const discoveredComponents = await this.dynamicDiscovery.discoverAllComponents();
+      
+      // Merge discovered components with static registry (avoid duplicates)
+      const existingIds = new Set(this.componentsList.map(comp => comp.id));
+      
+      const newComponents = discoveredComponents
+        .filter(comp => !existingIds.has(comp.id))
+        .map(comp => ({
+          id: comp.id,
+          name: comp.name,
+          category: comp.category,
+          tags: comp.tags,
+          description: comp.description,
+          installUrl: comp.installUrl,
+          styling: comp.styling
+        }));
+
+      this.componentsList.push(...newComponents);
+      console.error(`✅ Dynamic discovery complete: ${newComponents.length} new components added`);
+      
+    } catch (error) {
+      console.error('❌ Dynamic discovery failed:', error);
+    } finally {
+      this.discoveryInProgress = false;
+    }
   }
 
   async searchComponents(
@@ -462,5 +504,45 @@ export default function Example() {
     <${componentName} />
   );
 }`;
+  }
+
+  async discoverComponents(force: boolean = false): Promise<{ content: Array<{ type: string; text: string }> }> {
+    if (this.discoveryInProgress && !force) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: "🔍 Component discovery is already in progress. Please wait for it to complete."
+          }
+        ]
+      };
+    }
+
+    try {
+      console.error('🚀 Manual component discovery triggered...');
+      
+      const beforeCount = this.componentsList.length;
+      await this.performDynamicDiscovery();
+      const afterCount = this.componentsList.length;
+      const newComponents = afterCount - beforeCount;
+
+      return {
+        content: [
+          {
+            type: "text",
+            text: `✅ Component discovery completed!\n\n**Before**: ${beforeCount} components\n**After**: ${afterCount} components\n**New components discovered**: ${newComponents}\n\nYou can now search for more OriginUI components including tabs, modals, forms, and many others!`
+          }
+        ]
+      };
+    } catch (error) {
+      return {
+        content: [
+          {
+            type: "text",
+            text: `❌ Component discovery failed: ${error}\n\nFalling back to static component registry.`
+          }
+        ]
+      };
+    }
   }
 }
