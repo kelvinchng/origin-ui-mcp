@@ -1,0 +1,37 @@
+{
+  "name": "origin-ui-mcp",
+  "version": "1.0.0",
+  "description": "MCP server for OriginUI components with search and installation capabilities",
+  "main": "dist/index.js",
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/index.ts",
+    "start": "node dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "node-fetch": "^3.3.2",
+    "commander": "^12.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.3.0"
+  },
+  "bin": {
+    "origin-ui-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "keywords": [
+    "mcp",
+    "originui",
+    "components",
+    "shadcn",
+    "tailwind"
+  ],
+  "author": "",
+  "license": "MIT"
+}
