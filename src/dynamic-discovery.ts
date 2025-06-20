@@ -154,27 +154,28 @@ export class DynamicComponentDiscovery {
       }
       
       const html = await response.text();
-      return this.extractComponentsFromCategoryPageHTML(html, category);
+      return await this.extractComponentsFromCategoryPageHTML(html, category);
     } catch (error) {
       console.error(`Error fetching category page ${category}:`, error);
       return [];
     }
   }
 
-  private extractComponentsFromCategoryPageHTML(html: string, category: string): ComponentMetadata[] {
+  private async extractComponentsFromCategoryPageHTML(html: string, category: string): Promise<ComponentMetadata[]> {
     const components: ComponentMetadata[] = [];
     
     // Extract component registry URLs from the page
     const registryMatches = html.match(/https:\/\/originui\.com\/r\/([^"]+)\.json/g) || [];
     const uniqueComponents = new Set<string>();
     
-    registryMatches.forEach((match) => {
+    for (const match of registryMatches) {
       const componentId = match.match(/\/r\/([^"]+)\.json$/)?.[1];
       if (componentId && !uniqueComponents.has(componentId)) {
         uniqueComponents.add(componentId);
-        components.push(this.createComponentFromCategoryPage(componentId, category));
+        const component = await this.createComponentFromCategoryPage(componentId, category);
+        components.push(component);
       }
-    });
+    }
     
     // Look for component titles/names in the HTML to improve metadata
     const componentTitles = html.match(/<h[1-6][^>]*>([^<]+)<\/h[1-6]>/g) || [];
@@ -193,15 +194,18 @@ export class DynamicComponentDiscovery {
     return components;
   }
 
-  private createComponentFromCategoryPage(componentId: string, category: string): ComponentMetadata {
+  private async createComponentFromCategoryPage(componentId: string, category: string): Promise<ComponentMetadata> {
+    // Fetch actual component content to understand what it does
+    const componentContent = await this.fetchComponentContent(componentId);
+    
     return {
       id: componentId,
-      name: this.generateComponentName(componentId, category),
+      name: componentContent.name || this.generateComponentName(componentId, category),
       category: this.normalizeCategory(category),
-      tags: [category, 'ui', 'component'],
-      description: this.generateDescription(componentId, category),
+      tags: this.generateSemanticTags(componentId, category, componentContent),
+      description: componentContent.description || this.generateDescription(componentId, category),
       installUrl: `https://originui.com/r/${componentId}.json`,
-      dependencies: this.inferDependencies(category),
+      dependencies: componentContent.dependencies || this.inferDependencies(category),
       styling: {
         framework: 'Tailwind CSS',
         darkMode: true,
@@ -212,6 +216,133 @@ export class DynamicComponentDiscovery {
         preview: `${this.baseUrl}/${category}`
       }
     };
+  }
+
+  private async fetchComponentContent(componentId: string): Promise<{
+    name?: string;
+    description?: string; 
+    dependencies?: string[];
+    tags?: string[];
+  }> {
+    try {
+      const response = await fetch(`${this.baseUrl}/r/${componentId}.json`);
+      if (!response.ok) return {};
+      
+      const data = await response.json();
+      
+      // Extract semantic information from component code
+      const semanticInfo = this.analyzeComponentCode(data);
+      
+      const componentData = data as any;
+      return {
+        name: componentData.name || semanticInfo.name,
+        description: semanticInfo.description,
+        dependencies: componentData.dependencies || [],
+        tags: semanticInfo.tags
+      };
+    } catch (error) {
+      return {};
+    }
+  }
+
+  private analyzeComponentCode(componentData: any): {
+    name?: string;
+    description: string;
+    tags: string[];
+  } {
+    const tags: string[] = [];
+    let description = '';
+    let name = '';
+    
+    // Analyze component files for semantic meaning
+    const files = componentData.files || [];
+    const mainFile = files.find((f: any) => f.type === 'registry:ui');
+    
+    if (mainFile?.content) {
+      const code = mainFile.content.toLowerCase();
+      
+      // Detect component type from code patterns
+      if (code.includes('checkbox') || code.includes('input type="checkbox"')) {
+        tags.push('checkbox', 'form', 'input', 'selection');
+        description = 'Interactive checkbox component for selections and forms';
+        name = this.extractComponentNameFromCode(code, 'checkbox');
+      } else if (code.includes('badge') || code.includes('span') && code.includes('rounded')) {
+        tags.push('badge', 'status', 'indicator', 'label');
+        description = 'Badge component for status indicators and labels';
+        name = this.extractComponentNameFromCode(code, 'badge');
+      } else if (code.includes('tabs') || code.includes('tablist')) {
+        tags.push('tabs', 'navigation', 'switching', 'content');
+        description = 'Tab navigation component for organizing content';
+        name = this.extractComponentNameFromCode(code, 'tabs');
+      } else if (code.includes('navbar') || code.includes('navigation')) {
+        tags.push('navbar', 'navigation', 'menu', 'header');
+        description = 'Navigation bar component for site navigation';
+        name = this.extractComponentNameFromCode(code, 'navbar');
+      } else if (code.includes('button')) {
+        tags.push('button', 'action', 'interactive', 'click');
+        description = 'Interactive button component for user actions';
+        name = this.extractComponentNameFromCode(code, 'button');
+      } else if (code.includes('input') && !code.includes('checkbox')) {
+        tags.push('input', 'form', 'text', 'field');
+        description = 'Input field component for user data entry';
+        name = this.extractComponentNameFromCode(code, 'input');
+      } else if (code.includes('select') || code.includes('option')) {
+        tags.push('select', 'dropdown', 'choose', 'option');
+        description = 'Select dropdown component for choosing options';
+        name = this.extractComponentNameFromCode(code, 'select');
+      }
+      
+      // Detect specific variants
+      if (code.includes('disabled')) tags.push('disabled');
+      if (code.includes('readonly')) tags.push('readonly');
+      if (code.includes('required')) tags.push('required');
+      if (code.includes('icon')) tags.push('icon');
+      if (code.includes('loading')) tags.push('loading');
+      if (code.includes('error')) tags.push('error');
+      if (code.includes('success')) tags.push('success');
+      if (code.includes('warning')) tags.push('warning');
+      if (code.includes('dark')) tags.push('dark-mode');
+      if (code.includes('vertical')) tags.push('vertical');
+      if (code.includes('horizontal')) tags.push('horizontal');
+    }
+    
+    return { name, description, tags };
+  }
+
+  private extractComponentNameFromCode(code: string, baseType: string): string {
+    // Try to extract more descriptive names from code
+    if (code.includes('indeterminate')) return `Indeterminate ${baseType}`;
+    if (code.includes('colored')) return `Colored ${baseType}`;
+    if (code.includes('disabled')) return `Disabled ${baseType}`;
+    if (code.includes('readonly')) return `Readonly ${baseType}`;
+    if (code.includes('required')) return `Required ${baseType}`;
+    if (code.includes('todo')) return `Todo ${baseType}`;
+    if (code.includes('card')) return `Card-style ${baseType}`;
+    if (code.includes('group')) return `Grouped ${baseType}`;
+    if (code.includes('icon')) return `${baseType} with Icon`;
+    if (code.includes('badge')) return `${baseType} with Badge`;
+    if (code.includes('vertical')) return `Vertical ${baseType}`;
+    if (code.includes('rounded')) return `Rounded ${baseType}`;
+    
+    return this.capitalizeFirst(baseType);
+  }
+
+  private generateSemanticTags(componentId: string, category: string, componentContent: any): string[] {
+    const baseTags = [category, 'ui', 'component'];
+    
+    // Add semantic tags from component analysis
+    if (componentContent.tags) {
+      baseTags.push(...componentContent.tags);
+    }
+    
+    // Add tags based on component ID patterns
+    if (componentId.includes('tab')) baseTags.push('tabs', 'navigation');
+    if (componentId.includes('nav')) baseTags.push('navbar', 'navigation');
+    if (componentId.includes('check')) baseTags.push('checkbox', 'form');
+    if (componentId.includes('badge')) baseTags.push('badge', 'status');
+    if (componentId.includes('button')) baseTags.push('button', 'action');
+    
+    return [...new Set(baseTags)]; // Remove duplicates
   }
 
   async discoverComponentsBySearchAPI(): Promise<ComponentMetadata[]> {
@@ -446,15 +577,18 @@ export class DynamicComponentDiscovery {
     }
   }
 
-  private createNumberedComponent(componentId: string, index: number): ComponentMetadata {
+  private async createNumberedComponent(componentId: string, index: number): Promise<ComponentMetadata> {
+    // Fetch actual component content to understand what it does
+    const componentContent = await this.fetchComponentContent(componentId);
+    
     return {
       id: componentId,
-      name: `Component ${index}`,
-      category: 'component',
-      tags: ['ui', 'component', 'numbered'],
-      description: `OriginUI component ${componentId}`,
+      name: componentContent.name || `Component ${index}`,
+      category: this.inferCategoryFromContent(componentContent) || 'component',
+      tags: componentContent.tags || ['ui', 'component', 'numbered'],
+      description: componentContent.description || `OriginUI component ${componentId}`,
       installUrl: `https://originui.com/r/${componentId}.json`,
-      dependencies: [],
+      dependencies: componentContent.dependencies || [],
       styling: {
         framework: 'Tailwind CSS',
         darkMode: true,
@@ -465,6 +599,21 @@ export class DynamicComponentDiscovery {
         preview: `${this.baseUrl}`
       }
     };
+  }
+
+  private inferCategoryFromContent(componentContent: any): string | null {
+    if (!componentContent.tags) return null;
+    
+    const tags = componentContent.tags;
+    if (tags.includes('checkbox')) return 'input';
+    if (tags.includes('badge')) return 'feedback';
+    if (tags.includes('tabs')) return 'navigation';
+    if (tags.includes('navbar')) return 'navigation';
+    if (tags.includes('button')) return 'button';
+    if (tags.includes('input')) return 'input';
+    if (tags.includes('select')) return 'select';
+    
+    return null;
   }
 
   private createNamedComponent(componentId: string): ComponentMetadata {

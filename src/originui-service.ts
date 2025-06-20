@@ -1,6 +1,6 @@
 import fetch from 'node-fetch';
 import { COMPONENTS_REGISTRY, ComponentMetadata, CATEGORIES } from './components-registry.js';
-import { DynamicComponentDiscovery } from './dynamic-discovery.js';
+import { SimpleOriginUIDiscovery } from './simple-discovery.js';
 
 export interface OriginUIComponent {
   id: string;
@@ -50,11 +50,11 @@ export class OriginUIService {
   private componentsList: ComponentSearchResult[] = [];
   private lastCacheUpdate = 0;
   private readonly cacheExpiry = 5 * 60 * 1000; // 5 minutes
-  private dynamicDiscovery: DynamicComponentDiscovery;
+  private simpleDiscovery: SimpleOriginUIDiscovery;
   private discoveryInProgress = false;
 
   constructor() {
-    this.dynamicDiscovery = new DynamicComponentDiscovery();
+    this.simpleDiscovery = new SimpleOriginUIDiscovery();
     this.initializeComponentsList();
   }
 
@@ -79,30 +79,45 @@ export class OriginUIService {
     
     try {
       this.discoveryInProgress = true;
-      console.error('🚀 Starting background component discovery...');
+      console.error('🚀 Starting background tag-based component discovery...');
       
-      const discoveredComponents = await this.dynamicDiscovery.discoverAllComponents();
-      
-      // Merge discovered components with static registry (avoid duplicates)
+      // Get all available tags and discover components for each
+      const allTags = this.simpleDiscovery.getAllTags();
+      const discoveredComponents: ComponentSearchResult[] = [];
       const existingIds = new Set(this.componentsList.map(comp => comp.id));
       
-      const newComponents = discoveredComponents
-        .filter(comp => !existingIds.has(comp.id))
-        .map(comp => ({
-          id: comp.id,
-          name: comp.name,
-          category: comp.category,
-          tags: comp.tags,
-          description: comp.description,
-          installUrl: comp.installUrl,
-          styling: comp.styling
-        }));
+      // Discover components for core tags to populate initial cache
+      const coreTags = ['button', 'input', 'select', 'checkbox', 'tabs', 'dialog', 'card', 'form'];
+      
+      for (const tag of coreTags) {
+        try {
+          const tagComponents = await this.simpleDiscovery.searchComponentsByTag(tag);
+          
+          const newComponents = tagComponents
+            .filter(comp => !existingIds.has(comp.id))
+            .map(comp => ({
+              id: comp.id,
+              name: comp.name,
+              category: comp.category,
+              tags: comp.tags,
+              description: comp.description,
+              installUrl: comp.installUrl,
+              styling: comp.styling
+            }));
+          
+          discoveredComponents.push(...newComponents);
+          newComponents.forEach(comp => existingIds.add(comp.id));
+          
+        } catch (error) {
+          console.error(`❌ Failed to discover components for tag "${tag}": ${error}`);
+        }
+      }
 
-      this.componentsList.push(...newComponents);
-      console.error(`✅ Dynamic discovery complete: ${newComponents.length} new components added`);
+      this.componentsList.push(...discoveredComponents);
+      console.error(`✅ Tag-based discovery complete: ${discoveredComponents.length} new components added`);
       
     } catch (error) {
-      console.error('❌ Dynamic discovery failed:', error);
+      console.error('❌ Tag-based discovery failed:', error);
     } finally {
       this.discoveryInProgress = false;
     }
@@ -113,7 +128,8 @@ export class OriginUIService {
     category?: string,
     limit: number = 10
   ): Promise<{ content: Array<{ type: string; text: string }> }> {
-    const filteredComponents = this.componentsList.filter(component => {
+    // First try static registry search
+    const staticResults = this.componentsList.filter(component => {
       const matchesQuery = 
         component.name.toLowerCase().includes(query.toLowerCase()) ||
         component.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase())) ||
@@ -124,10 +140,30 @@ export class OriginUIService {
       return matchesQuery && matchesCategory;
     });
 
-    const results = filteredComponents.slice(0, limit);
+    // If static search finds results, use them
+    let results = staticResults;
+    let searchMethod = 'static registry';
+
+    // If no static results, try dynamic search using tags
+    if (results.length === 0) {
+      const bestTag = this.simpleDiscovery.findBestMatchingTag(query);
+      if (bestTag) {
+        console.error(`🔍 No static results for "${query}", trying dynamic search with tag "${bestTag}"`);
+        const dynamicResults = await this.simpleDiscovery.searchComponentsByTag(bestTag);
+        
+        // Filter by category if specified
+        results = category 
+          ? dynamicResults.filter(comp => comp.category === category)
+          : dynamicResults;
+        
+        searchMethod = `dynamic search (tag: ${bestTag})`;
+      }
+    }
+
+    const finalResults = results.slice(0, limit);
     
-    const resultText = results.length > 0 
-      ? results.map(comp => 
+    const resultText = finalResults.length > 0 
+      ? finalResults.map(comp => 
           `**${comp.name}** (${comp.id})\\n` +
           `Category: ${comp.category}\\n` +
           `Tags: ${comp.tags.join(', ')}\\n` +
@@ -136,13 +172,15 @@ export class OriginUIService {
           `Install: \`pnpm dlx shadcn@latest add ${comp.installUrl}\`\\n` +
           `Visual: Use \`get_component_screenshot\` to see how this component looks\\n`
         ).join('\\n---\\n')
-      : `No components found matching "${query}"${category ? ` in category "${category}"` : ''}`;
+      : `No components found matching "${query}"${category ? ` in category "${category}"` : ''}. Try variations like "checkbox", "button", "input", etc.`;
+
+    console.error(`🔍 Search for "${query}" via ${searchMethod}: found ${finalResults.length} results`);
 
     return {
       content: [
         {
           type: "text",
-          text: `Found ${results.length} component(s):\\n\\n${resultText}\\n\\n💡 **Tip**: Use the \`get_component_screenshot\` tool with any component ID to see visual previews and decide if it fits your project!`
+          text: `Found ${finalResults.length} component(s) via ${searchMethod}:\\n\\n${resultText}\\n\\n💡 **Tip**: Use the \`get_component_screenshot\` tool with any component ID to see visual previews and decide if it fits your project!`
         }
       ]
     };

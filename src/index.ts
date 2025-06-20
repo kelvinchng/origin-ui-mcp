@@ -8,11 +8,11 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from "@modelcontextprotocol/sdk/types.js";
-import { OriginUIService } from "./originui-service.js";
+import { FastRegistryService } from "./registry-service.js";
 
 class OriginUIMCPServer {
   private server: Server;
-  private originUIService: OriginUIService;
+  private registryService: FastRegistryService;
 
   constructor() {
     this.server = new Server(
@@ -27,7 +27,7 @@ class OriginUIMCPServer {
       }
     );
 
-    this.originUIService = new OriginUIService();
+    this.registryService = new FastRegistryService();
     this.setupToolHandlers();
   }
 
@@ -48,7 +48,7 @@ class OriginUIMCPServer {
                 category: {
                   type: "string",
                   description: "Filter by specific category (e.g., 'button', 'input', 'navbar')",
-                  enum: ["button", "input", "select", "form", "navigation", "card", "data-display", "overlay", "feedback", "layout", "typography", "media"]
+                  enum: ["button", "input", "select", "form", "navigation", "card", "data-display", "overlay", "feedback", "layout", "typography", "media", "component"]
                 },
                 limit: {
                   type: "number",
@@ -82,7 +82,7 @@ class OriginUIMCPServer {
                 category: {
                   type: "string",
                   description: "Filter by category",
-                  enum: ["button", "input", "select", "form", "navigation", "card", "data-display", "overlay", "feedback", "layout", "typography", "media"]
+                  enum: ["button", "input", "select", "form", "navigation", "card", "data-display", "overlay", "feedback", "layout", "typography", "media", "component"]
                 },
                 limit: {
                   type: "number",
@@ -141,17 +141,11 @@ class OriginUIMCPServer {
             },
           },
           {
-            name: "discover_components",
-            description: "Manually trigger discovery of new components from OriginUI (useful when components are not found)",
+            name: "get_registry_stats",
+            description: "Get comprehensive statistics about the OriginUI component registry",
             inputSchema: {
               type: "object",
-              properties: {
-                force: {
-                  type: "boolean",
-                  description: "Force rediscovery even if recently performed",
-                  default: false
-                },
-              },
+              properties: {},
             },
           },
         ],
@@ -168,43 +162,47 @@ class OriginUIMCPServer {
       try {
         switch (name) {
           case "search_components":
-            return await this.originUIService.searchComponents(
+            return await this.registryService.searchComponents(
               args.query as string,
               args.category as string | undefined,
               args.limit as number | undefined
             );
 
           case "get_component_details":
-            return await this.originUIService.getComponentDetails(
+            return await this.registryService.getComponentDetails(
               args.componentId as string
             );
 
           case "list_components":
-            return await this.originUIService.listComponents(
+            return await this.registryService.listComponents(
               args.category as string | undefined,
               args.limit as number | undefined
             );
 
           case "get_install_command":
-            return await this.originUIService.getInstallCommand(
+            return await this.registryService.getInstallCommand(
               args.componentId as string
             );
 
           case "get_component_preview":
-            return await this.originUIService.getComponentPreview(
+            // For now, redirect to get_component_details
+            return await this.registryService.getComponentDetails(
               args.componentId as string
             );
 
           case "get_component_screenshot":
-            return await this.originUIService.getComponentScreenshot(
-              args.componentId as string,
-              args.theme as string | undefined
-            );
+            // Return helpful message about using registry stats
+            return {
+              content: [
+                {
+                  type: "text",
+                  text: `Screenshots are not available in the fast registry. Visit https://originui.com/ to see component previews, or use \`get_component_details\` for component information.`
+                }
+              ]
+            };
 
-          case "discover_components":
-            return await this.originUIService.discoverComponents(
-              args.force as boolean | undefined
-            );
+          case "get_registry_stats":
+            return await this.registryService.getRegistryStats();
 
           default:
             throw new McpError(
@@ -225,9 +223,17 @@ class OriginUIMCPServer {
   }
 
   async run() {
-    const transport = new StdioServerTransport();
-    await this.server.connect(transport);
-    console.error("OriginUI MCP server running on stdio");
+    try {
+      // Initialize the registry service
+      await this.registryService.initialize();
+      
+      const transport = new StdioServerTransport();
+      await this.server.connect(transport);
+      console.error("OriginUI MCP server running on stdio with fast registry");
+    } catch (error) {
+      console.error("Failed to start MCP server:", error);
+      process.exit(1);
+    }
   }
 }
 
