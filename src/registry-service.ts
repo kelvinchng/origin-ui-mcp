@@ -44,8 +44,31 @@ export class FastRegistryService {
 
   async initialize(): Promise<void> {
     try {
-      const registryPath = path.join(__dirname, 'complete-registry.json');
-      const registryData = await fs.readFile(registryPath, 'utf-8');
+      // Try multiple paths to find the registry file
+      const possiblePaths = [
+        path.join(__dirname, 'complete-registry.json'), // Development
+        path.join(__dirname, '..', 'src', 'complete-registry.json'), // npx install
+        path.join(process.cwd(), 'src', 'complete-registry.json'), // Local
+      ];
+      
+      let registryData: string | null = null;
+      let usedPath: string | null = null;
+      
+      for (const registryPath of possiblePaths) {
+        try {
+          registryData = await fs.readFile(registryPath, 'utf-8');
+          usedPath = registryPath;
+          break;
+        } catch (error) {
+          // Try next path
+          continue;
+        }
+      }
+      
+      if (!registryData) {
+        throw new Error('Could not find complete-registry.json in any expected location');
+      }
+      
       this.registry = JSON.parse(registryData);
       
       // Build indexes for fast searching
